@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <!-- Viewport corregido para permitir zoom pero ajustar al ancho inicial correctamente -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#3498db">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>Administración Palo Solo</title>
+    
+    <!-- Se añadió ?v=2 para forzar recarga de archivos -->
+    <link rel="manifest" href="manifest.json?v=2">
+    <link rel="apple-touch-icon" href="assets/icon-192x192.png?v=2">
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        /* Estilo para las cursivas del texto de bienvenida */
+        .cursiva-text { font-family: 'Georgia', serif; font-style: italic; }
+
+        /* Splash Screen Estilos */
+        #splash-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #f3e5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 1s ease;
+        }
+        .content-splash { text-align: center; padding: 20px; }
+        .marco-foto {
+            width: 150px; height: 150px;
+            border: 4px solid #8e44ad;
+            padding: 5px; margin: 0 auto 20px auto;
+            border-radius: 50%; overflow: hidden;
+        }
+        .marco-foto img { width: 100%; height: 100%; object-fit: cover; filter: sepia(20%) brightness(1.1); }
+        #typing-text {
+            font-size: 1.2rem; color: #4a148c;
+            text-align: center; max-width: 80%; margin: 0 auto; line-height: 1.5;
+        }
+
+        /* Ajuste fundamental para evitar que los inputs disparen zoom en iOS */
+        input, select, textarea { font-size: 16px !important; }
+        
+        /* Aseguramos que los contenedores no sobrepasen el ancho de la pantalla */
+        body { overflow-x: hidden; }
+        .dashboard-container { width: 100%; box-sizing: border-box; }
+        
+        .clickable { cursor: pointer; }
+        .total-naranja { color: #e67e22; font-weight: bold; text-align: right; }
+        .fila-detalle { display: grid; grid-template-columns: 1fr auto 100px; align-items: center; padding: 4px 0; gap: 10px; }
+        .fila-simple { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 4px 0; }
+        .resultado-ganancia { font-weight: bold; }
+        .detalle-usuario { padding: 5px; background: #fdfdfd; font-size: 0.8em; border: 1px solid #eee; margin-top: 2px; }
+        
+        #seccion-graficas { min-height: 250px; padding: 10px; box-sizing: border-box; }
+        .grid-graficas {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            align-items: start;
+        }
+        
+        /* Ajuste responsivo para móviles */
+        @media (max-width: 600px) {
+            .grid-graficas { grid-template-columns: 1fr; }
+            .dashboard-container { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <div class="content-splash">
+            <div class="marco-foto">
+                <img src="assets/malena.png" alt="Malena">
+            </div>
+            <p id="typing-text" class="cursiva-text"></p>
+        </div>
+    </div>
+
+    <h2>Administración Palo Solo</h2>
+
+    <div class="dashboard-container">
+        <!-- Columna Izquierda -->
+        <div class="left-panel">
+            <div class="seccion">
+                <div class="fila-head">
+                    <span>$ Ganancias</span>
+                    <span>Proporción</span>
+                    <span>Recibe</span>
+                </div>
+                
+                <div class="fila fila-ganancia clickable" onclick="toggleUsuario('erandi')">
+                    <span class="nombre-persona">Erandi <span id="flecha-erandi">▼</span></span>
+                    <div class="input-group"><input type="number" class="input-porcentaje" value="35"> %</div>
+                    <span class="resultado-ganancia">$0</span>
+                </div>
+                <div id="detalle-erandi" class="detalle-usuario" style="display:none;"></div>
+
+                <div class="fila fila-ganancia clickable" onclick="toggleUsuario('gina')">
+                    <span class="nombre-persona">Gina <span id="flecha-gina">▼</span></span>
+                    <div class="input-group"><input type="number" class="input-porcentaje" value="35"> %</div>
+                    <span class="resultado-ganancia">$0</span>
+                </div>
+                <div id="detalle-gina" class="detalle-usuario" style="display:none;"></div>
+
+                <div class="fila fila-ganancia clickable" onclick="toggleUsuario('rodolfo')">
+                    <span class="nombre-persona">Rodolfo <span id="flecha-rodolfo">▼</span></span>
+                    <div class="input-group"><input type="number" class="input-porcentaje" value="25"> %</div>
+                    <span class="resultado-ganancia">$0</span>
+                </div>
+                <div id="detalle-rodolfo" class="detalle-usuario" style="display:none;"></div>
+            </div>
+
+            <div class="seccion" id="seccion-graficas">
+                <div class="grid-graficas">
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <h3 style="font-size: 0.9em; margin-bottom: 5px;">Ingresos</h3>
+                        <div style="width: 100%; max-width: 200px;">
+                            <canvas id="miGrafico"></canvas>
+                        </div>
+                        <div id="leyenda-personalizada" style="font-size: 0.8em; margin-top: 10px; width: 100%;"></div>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <h3 style="font-size: 0.9em; margin-bottom: 5px;">Histórico</h3>
+                        <div style="width: 100%; max-width: 200px;">
+                            <canvas id="graficoAnual"></canvas>
+                        </div>
+                        <div id="tabla-historico" style="width: 100%; margin-top: 15px;"></div>
+                        <div id="total-anual-ingresos" style="margin-top: 10px; font-weight: bold; border-top: 2px solid #333; padding-top: 5px; text-align: right; width: 100%;">
+                            Total Anual: $0
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="seccion">
+                <h2>Retenciones</h2>
+                <div class="fila-simple clickable" onclick="toggleDetalle()">
+                    <span style="font-weight: bold;">Mantenimiento Fin <span id="flecha">▼</span></span>
+                    <span id="res-mantenimiento-fin" class="total-naranja">$0</span>
+                </div>
+
+                <div id="detalle-mantenimiento" style="display: none; background: #f9f9f9; padding: 10px; border-radius: 5px; margin-top: 5px;">
+                    <div class="fila-detalle">
+                        <span>Mantenimiento Ret</span>
+                        <div class="input-grupo"><input type="number" id="porcentaje-ret" value="5" style="width: 40px; text-align: center;">%</div>
+                        <span id="res-mantenimiento-ret" class="total-naranja">$0</span>
+                    </div>
+                    <div class="fila-detalle">
+                        <span>Mantenimiento Ini</span>
+                        <div class="input-grupo"><input type="number" id="porcentaje-ini" value="20" style="width: 40px; text-align: center;">%</div>
+                        <span id="res-mantenimiento-ini" class="total-naranja">$0</span>
+                    </div>
+                </div>
+
+                <div class="fila-simple" style="margin-top: 10px;">
+                    <span>Servicios</span>
+                    <span id="retencion-servicios" class="total-naranja">$0</span>
+                </div>
+                <div class="fila-simple">
+                    <span>Limpieza</span>
+                    <span id="retencion-limpieza" class="total-naranja">$0</span>
+                </div>
+
+                <div class="fila-simple" style="margin-top: 15px; border-top: 2px solid #333; padding-top: 10px;">
+                    <span style="font-weight: bold; font-size: 1.1em;">TOTAL RETENIDO:</span>
+                    <span id="total-retenido" style="color: #c0392b; font-weight: bold; font-size: 1.1em; text-align: right;">$0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="seccion">
+                <div class="fila-head-admin">
+                    <span>Habitación</span>
+                    <span>Renta</span>
+                    <span>Ocupada</span>
+                    <span>Limpieza</span>
+                    <span style="text-align: center;">Renta - Limpieza</span>
+                    <span></span>
+                </div>
+                <div id="lista-habitaciones"></div>
+                <div class="fila-admin fila-total">
+                    <span style="font-weight: bold; text-align: left;">TOTALES:</span>
+                    <span id="total-renta" style="font-weight: bold; text-align: center;">$0</span>
+                    <span></span>
+                    <span id="total-limpieza" style="font-weight: bold; text-align: center;">$0</span>
+                    <span id="total-neto" style="font-weight: bold; text-align: right; padding-right: 10px;">$0</span>
+                    <span></span>
+                </div>
+                <button id="btn-nuevo">+ Nuevo</button>
+            </div>
+
+            <div class="seccion">
+                <div class="head-servicios">
+                    <span style="text-align: left;">Servicio</span>
+                    <span style="text-align: center;">Costo</span>
+                    <span style="text-align: center;">Si/No</span>
+                    <span style="text-align: right; padding-right: 20px;">Total</span>
+                    <span></span>
+                </div>
+                <div id="lista-servicios"></div>
+                <div class="total-servicios-fila">
+                    <span style="font-weight: bold;">TOTAL SERVICIOS:</span>
+                    <span></span>
+                    <span></span>
+                    <span id="total-servicios" style="font-weight: bold; text-align: right; padding-right: 20px;">$0</span>
+                    <span></span>
+                </div>
+                <button id="btn-nuevo-servicio">+ Nuevo Servicio</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Lógica Splash Screen
+        const text = "Esta casa es mi legado, en sus paredes está mi historia y en mis amados hijos está mi corazón.";
+        const element = document.getElementById("typing-text");
+        let i = 0;
+        function typeWriter() {
+            if (i < text.length) {
+                element.innerHTML += text.charAt(i);
+                i++;
+                setTimeout(typeWriter, 50);
+            } else {
+                setTimeout(() => {
+                    const splash = document.getElementById('splash-screen');
+                    splash.style.opacity = '0';
+                    setTimeout(() => { splash.style.display = 'none'; }, 1000);
+                }, 2000);
+            }
+        }
+        window.onload = typeWriter;
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(reg => console.log('PWA Service Worker listo'))
+                    .catch(err => console.log('Error en SW', err));
+            });
+        }
+        function toggleDetalle() {
+            const detalle = document.getElementById('detalle-mantenimiento');
+            const flecha = document.getElementById('flecha');
+            const esVisible = detalle.style.display === 'block';
+            detalle.style.display = esVisible ? 'none' : 'block';
+            flecha.innerText = esVisible ? '▼' : '▲';
+        }
+        function toggleUsuario(nombre) {
+            const detalle = document.getElementById(`detalle-${nombre}`);
+            const flecha = document.getElementById(`flecha-${nombre}`);
+            const esVisible = detalle.style.display === 'block';
+            detalle.style.display = esVisible ? 'none' : 'block';
+            flecha.innerText = esVisible ? '▼' : '▲';
+        }
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBn48uOAC3Kx6SOqkQMJgJkAkjgPUlbkJ4",
+            authDomain: "palo-solo.firebaseapp.com",
+            projectId: "palo-solo",
+            storageBucket: "palo-solo.firebasestorage.app",
+            messagingSenderId: "685156694424",
+            appId: "1:685156694424:web:4eba9aebf21ec49f2953ed"
+        };
+        firebase.initializeApp(firebaseConfig);
+        window.db = firebase.firestore();
+    </script>
+    <script src="app.js"></script>
+</body>
+</html>
